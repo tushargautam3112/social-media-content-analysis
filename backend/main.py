@@ -7,6 +7,15 @@ from PIL import Image
 import pdfplumber
 import pytesseract
 
+import os
+from fastapi import FastAPI
+from pydantic import BaseModel
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+load_dotenv()
+
+
 app = FastAPI(title="social-media-content-analyzer")
 
 app.add_middleware(
@@ -71,3 +80,26 @@ async def extract(files: List[UploadFile] = File(...)):
         except Exception as e:
             results.append({"filename": filename, "error": str(e), "text": ""})
     return {"files": results}
+
+genai.configure(api_key="AIzaSyAbZIsozFvObWcDSqmDPUDAsp8WL6I-Jnc")
+
+class AnalyzeRequest(BaseModel):
+    text: str
+
+@app.post("/analyze")
+async def analyze_text(payload: AnalyzeRequest):
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    prompt = f"""
+    analyze this social media content and return:
+    1. tone
+    2. clarity issues
+    3. engagement improvement suggestions
+    4. a polished improved version
+    content:
+    {payload.text}
+    """
+
+    response = model.generate_content(prompt)
+
+    return {"analysis": response.text}
